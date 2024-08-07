@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import cubeGrass from "../../public/images/cube-grass.png";
+import cubeGrass from "../images/cube-grass.png";
 
 const GRID_SIZE = 128;
 const INITIAL_TILE_SIZE = 64;
@@ -25,10 +25,14 @@ const IsometricTerrain: React.FC = () => {
     ctx.clearRect(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
     for (let y = 0; y < GRID_SIZE; y++) {
       for (let x = 0; x < GRID_SIZE; x++) {
-        const drawX = x * tileSize + (y % 2 ? tileSize / 2 : 0) - camera.x * tileSize;
-        const drawY = (y * tileSize) / 2 - (camera.y * tileSize) / 2;
+        // Adjusting these calculations for an isometric look
+        const isoX = ((x - y) * tileSize) / 2;
+        const isoY = ((x + y) * tileSize) / 6;
+        const drawX = WINDOW_WIDTH / 2 + isoX - camera.x * tileSize;
+        const drawY = isoY - camera.y * tileSize;
+
         if (imageRef.current.complete) {
-          // Check if image is loaded
+          // Draw each block
           ctx.drawImage(imageRef.current, drawX, drawY, tileSize, tileSize / 2);
         }
       }
@@ -53,16 +57,16 @@ const IsometricTerrain: React.FC = () => {
   function handleKeyPress(e: React.KeyboardEvent): void {
     switch (e.key) {
       case "ArrowUp":
-        setCamera((old: any) => ({ ...old, y: old.y - 1 }));
+        setCamera((old: Camera) => ({ ...old, y: old.y - 1 }));
         break;
       case "ArrowDown":
-        setCamera((old: any) => ({ ...old, y: old.y + 1 }));
+        setCamera((old: Camera) => ({ ...old, y: old.y + 1 }));
         break;
       case "ArrowLeft":
-        setCamera((old: any) => ({ ...old, x: old.x - 1 }));
+        setCamera((old: Camera) => ({ ...old, x: old.x - 1 }));
         break;
       case "ArrowRight":
-        setCamera((old: any) => ({ ...old, x: old.x + 1 }));
+        setCamera((old: Camera) => ({ ...old, x: old.x + 1 }));
         break;
       case "+":
         handleZoom(1);
