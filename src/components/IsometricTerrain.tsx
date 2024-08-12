@@ -27,7 +27,7 @@ const IsometricTerrain: React.FC = () => {
       for (let x = 0; x < GRID_SIZE; x++) {
         // Adjusting these calculations for an isometric look
         const isoX = ((x - y) * tileSize) / 2;
-        const isoY = ((x + y) * tileSize) / 6;
+        const isoY = ((x + y) * tileSize) / 7;
         const drawX = WINDOW_WIDTH / 2 + isoX - camera.x * tileSize;
         const drawY = isoY - camera.y * tileSize;
 
@@ -50,7 +50,7 @@ const IsometricTerrain: React.FC = () => {
 
   return (
     <div tabIndex={0} onKeyDown={handleKeyPress} style={{ outline: "none" }}>
-      <canvas ref={canvasRef} width={WINDOW_WIDTH} height={WINDOW_HEIGHT} />
+      <canvas id="grid-canvas" ref={canvasRef} width={WINDOW_WIDTH} height={WINDOW_HEIGHT} />
     </div>
   );
 
@@ -68,7 +68,7 @@ const IsometricTerrain: React.FC = () => {
       case "ArrowRight":
         setCamera((old: Camera) => ({ ...old, x: old.x + 1 }));
         break;
-      case "+":
+      case "=":
         handleZoom(1);
         break;
       case "-":
