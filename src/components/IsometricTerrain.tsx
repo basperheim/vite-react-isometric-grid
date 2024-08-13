@@ -7,10 +7,15 @@ import "./IsometricTerrain.css";
 
 const GRID_SIZE = 128;
 const INITIAL_TILE_SIZE = 64;
-const WINDOW_WIDTH = 1280;
-const WINDOW_HEIGHT = 720;
+const CANVAS_WIDTH = 1280;
+const CANVAS_HEIGHT = 720;
 
 interface Camera {
+  x: number;
+  y: number;
+}
+
+interface MousePosition {
   x: number;
   y: number;
 }
@@ -20,6 +25,8 @@ interface Tile {
   y: number;
   terrain: string;
   height: number;
+  // drawX: number;
+  // drawY: number;
 }
 
 const IsometricTerrain: React.FC = () => {
@@ -28,6 +35,7 @@ const IsometricTerrain: React.FC = () => {
   const [tileSize, setTileSize] = useState<number>(INITIAL_TILE_SIZE);
   const [camera, setCamera] = useState<Camera>({ x: 0, y: 0 });
   const [selectedTile, setSelectedTile] = useState<Tile | null>(null);
+  const [mousePosition, setMousePosition] = useState<MousePosition>({ x: 0, y: 0 });
 
   const imageRefs = useRef<Record<string, HTMLImageElement>>({
     grass: new Image(),
@@ -48,12 +56,12 @@ const IsometricTerrain: React.FC = () => {
     const ctx = canvas?.getContext("2d");
     if (!ctx) return;
 
-    ctx.clearRect(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
+    ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
     tiles.forEach((tile) => {
       const isoX = ((tile.x - tile.y) * tileSize) / 2;
       const isoY = ((tile.x + tile.y) * tileSize) / 7 - tile.height;
-      const drawX = WINDOW_WIDTH / 2 + isoX - camera.x * tileSize;
+      const drawX = CANVAS_WIDTH / 2 + isoX - camera.x * tileSize;
       const drawY = isoY - camera.y * tileSize;
 
       const img = imageRefs.current[tile.terrain];
@@ -62,9 +70,10 @@ const IsometricTerrain: React.FC = () => {
 
         // Apply bobbing effect
         if (selectedTile?.x === tile.x && selectedTile?.y === tile.y) {
-          const bobbingOffset = Math.sin(Date.now() / 500) * 5;
-          ctx.translate(drawX + tileSize / 2, drawY + tileSize / 2 + bobbingOffset);
-          ctx.translate(-tileSize / 2, -tileSize / 2);
+          ctx.translate(drawX, drawY - 20);
+          //   const bobbingOffset = Math.sin(Date.now() / 500) * 5;
+          //   ctx.translate(drawX + tileSize / 2, drawY + tileSize / 2 + bobbingOffset);
+          //   ctx.translate(-tileSize / 2, -tileSize / 2);
         } else {
           ctx.translate(drawX, drawY);
         }
@@ -82,8 +91,8 @@ const IsometricTerrain: React.FC = () => {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (canvas) {
-      canvas.width = WINDOW_WIDTH;
-      canvas.height = WINDOW_HEIGHT;
+      canvas.width = CANVAS_WIDTH;
+      canvas.height = CANVAS_HEIGHT;
     }
   }, []);
 
@@ -103,35 +112,23 @@ const IsometricTerrain: React.FC = () => {
     setTiles(newTiles);
   }, []);
 
-  // Handle mouse move to detect tile under the cursor
   const handleMouseMove = (e: React.MouseEvent) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    setMousePosition({ x: mouseX, y: mouseY });
 
     // Convert screen coordinates to tile coordinates
-    const tileX = Math.floor(((x - WINDOW_WIDTH / 2) / tileSize + camera.x) / 2 + (y + camera.y * tileSize) / (tileSize / 2));
-    const tileY = Math.floor(((y + WINDOW_HEIGHT + camera.y * tileSize) / (tileSize / 2) - tileX) / 2 + camera.x);
-    console.log(tileX, tileY);
+    const tileX = Math.floor(((mouseX - CANVAS_WIDTH / 2) / tileSize + camera.x) / 2 + (mouseY + camera.y * tileSize) / (tileSize / 2));
+    const tileY = Math.floor(((mouseY + CANVAS_HEIGHT / 2 + camera.y * tileSize) / (tileSize / 2) - tileX) / 2 + camera.x);
 
     // Find the tile under the cursor
     const tile = tiles.find((t) => t.x === tileX && t.y === tileY);
     setSelectedTile(tile || null);
   };
-
-  return (
-    <div tabIndex={0} onKeyDown={handleKeyPress} onMouseMove={handleMouseMove} style={{ outline: "none" }}>
-      <canvas id="grid-canvas" ref={canvasRef} width={WINDOW_WIDTH} height={WINDOW_HEIGHT} />
-      {selectedTile && (
-        <div className="tile-info">
-          X: {selectedTile.x}, Y: {selectedTile.y}
-        </div>
-      )}
-    </div>
-  );
 
   function handleKeyPress(e: React.KeyboardEvent): void {
     switch (e.key) {
@@ -159,6 +156,25 @@ const IsometricTerrain: React.FC = () => {
   function handleZoom(inOrOut: number): void {
     setTileSize((oldSize) => oldSize + inOrOut * 16);
   }
+
+  return (
+    <div tabIndex={0} onKeyDown={handleKeyPress} onMouseMove={handleMouseMove} style={{ outline: "none" }}>
+      <canvas id="grid-canvas" ref={canvasRef} width={CANVAS_WIDTH} height={CANVAS_HEIGHT} />
+
+      <div id="text-container">
+        <div className="hover-text">
+          <span>X:</span> {selectedTile ? selectedTile.x : "N/A"}, <span>Y:</span> {selectedTile ? selectedTile.y : "N/A"}
+        </div>
+        <div className="mouse-text">
+          <span>Mouse X:</span> {mousePosition.x}, <span>Y:</span> {mousePosition.y}
+        </div>
+        <div className="mouse-text">
+          <span>Mouse perc:</span> {((mousePosition.x / CANVAS_WIDTH) * 100).toFixed(1)}%, <span>Y:</span>
+          {((mousePosition.y / CANVAS_HEIGHT) * 100).toFixed(1)}%
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export default IsometricTerrain;
