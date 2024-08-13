@@ -35,7 +35,7 @@ const IsometricTerrain: React.FC = () => {
   const [tileSize, setTileSize] = useState<number>(INITIAL_TILE_SIZE);
   const [camera, setCamera] = useState<Camera>({ x: 0, y: 0 });
   const [hoveredTile, setHoveredTile] = useState<Tile | null>(null);
-  // const [selectedTile, setSelectedTile] = useState<Tile | null>(null);
+  const [selectedTile, setSelectedTile] = useState<Tile | null>(null);
   const [mousePosition, setMousePosition] = useState<MousePosition>({ x: 0, y: 0 });
 
   const imageRefs = useRef<Record<string, HTMLImageElement>>({
@@ -97,11 +97,20 @@ const IsometricTerrain: React.FC = () => {
           ctx.translate(drawX, drawY);
         }
 
+        // Draw the tile image
         ctx.drawImage(img, 0, 0, tileSize, tileSize / 2);
+
+        // Draw border around the selected tile
+        if (selectedTile?.x === tile.x && selectedTile?.y === tile.y) {
+          ctx.strokeStyle = "red";
+          ctx.lineWidth = 3;
+          ctx.strokeRect(0, 0, tileSize, tileSize / 2);
+        }
+
         ctx.restore();
       }
     });
-  }, [tiles, tileSize, camera, hoveredTile]);
+  }, [tiles, tileSize, camera, hoveredTile, selectedTile]);
 
   useEffect(() => {
     drawGrid();
@@ -142,6 +151,27 @@ const IsometricTerrain: React.FC = () => {
     setHoveredTile(tile || null);
   };
 
+  const handleMouseClick = (e: React.MouseEvent): void => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    // Short-circuit the function if mouse is NOT over canvas
+    if (mouseX < 0 || mouseX > CANVAS_WIDTH || mouseY < 0 || mouseY > CANVAS_HEIGHT) {
+      return;
+    }
+
+    // Check if the hovered tile is clicked
+    const tile = tiles.find((t) => {
+      return t.drawX <= mouseX && mouseX <= t.drawX + tileSize && t.drawY <= mouseY && mouseY <= t.drawY + tileSize / 2;
+    });
+
+    setSelectedTile(tile || null);
+  };
+
   const handleKeyPress = (e: React.KeyboardEvent): void => {
     switch (e.key) {
       case "ArrowUp":
@@ -170,9 +200,8 @@ const IsometricTerrain: React.FC = () => {
   };
 
   return (
-    <div tabIndex={0} onKeyDown={handleKeyPress} onMouseMove={handleMouseMove} style={{ outline: "none" }}>
+    <div tabIndex={0} onKeyDown={handleKeyPress} onMouseMove={handleMouseMove} onClick={handleMouseClick} style={{ outline: "none" }}>
       <canvas id="grid-canvas" ref={canvasRef} width={CANVAS_WIDTH} height={CANVAS_HEIGHT} />
-
       <div id="text-container">
         <div className="hover-text">
           <span>X:</span> {hoveredTile ? hoveredTile.x : "N/A"}, <span>Y:</span> {hoveredTile ? hoveredTile.y : "N/A"}
