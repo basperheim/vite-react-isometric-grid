@@ -25,8 +25,8 @@ interface Tile {
   y: number;
   terrain: string;
   height: number;
-  // drawX: number;
-  // drawY: number;
+  drawX: number;
+  drawY: number;
 }
 
 const IsometricTerrain: React.FC = () => {
@@ -34,7 +34,8 @@ const IsometricTerrain: React.FC = () => {
   const [tiles, setTiles] = useState<Tile[]>([]);
   const [tileSize, setTileSize] = useState<number>(INITIAL_TILE_SIZE);
   const [camera, setCamera] = useState<Camera>({ x: 0, y: 0 });
-  const [selectedTile, setSelectedTile] = useState<Tile | null>(null);
+  const [hoveredTile, setHoveredTile] = useState<Tile | null>(null);
+  // const [selectedTile, setSelectedTile] = useState<Tile | null>(null);
   const [mousePosition, setMousePosition] = useState<MousePosition>({ x: 0, y: 0 });
 
   const imageRefs = useRef<Record<string, HTMLImageElement>>({
@@ -51,6 +52,24 @@ const IsometricTerrain: React.FC = () => {
     imageRefs.current.water.src = cubeWater;
   }, []);
 
+  useEffect(() => {
+    const newTiles: Tile[] = [];
+    const terrains = ["grass", "dirt", "rocky", "water"];
+    for (let y = 0; y < GRID_SIZE; y++) {
+      for (let x = 0; x < GRID_SIZE; x++) {
+        newTiles.push({
+          x: x,
+          y: y,
+          terrain: terrains[Math.floor(Math.random() * terrains.length)],
+          height: Math.floor(Math.random() * 10),
+          drawX: 0, // Initialize with dummy value
+          drawY: 0, // Initialize with dummy value
+        });
+      }
+    }
+    setTiles(newTiles);
+  }, []);
+
   const drawGrid = useCallback(() => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
@@ -64,16 +83,16 @@ const IsometricTerrain: React.FC = () => {
       const drawX = CANVAS_WIDTH / 2 + isoX - camera.x * tileSize;
       const drawY = isoY - camera.y * tileSize;
 
+      // Update each tile's respective draw position on the canvas
+      tile.drawX = drawX;
+      tile.drawY = drawY;
+
       const img = imageRefs.current[tile.terrain];
       if (img && img.complete) {
         ctx.save();
 
-        // Apply bobbing effect
-        if (selectedTile?.x === tile.x && selectedTile?.y === tile.y) {
+        if (hoveredTile?.x === tile.x && hoveredTile?.y === tile.y) {
           ctx.translate(drawX, drawY - 20);
-          //   const bobbingOffset = Math.sin(Date.now() / 500) * 5;
-          //   ctx.translate(drawX + tileSize / 2, drawY + tileSize / 2 + bobbingOffset);
-          //   ctx.translate(-tileSize / 2, -tileSize / 2);
         } else {
           ctx.translate(drawX, drawY);
         }
@@ -82,37 +101,18 @@ const IsometricTerrain: React.FC = () => {
         ctx.restore();
       }
     });
-  }, [tileSize, camera, tiles, selectedTile]);
+  }, [tiles, tileSize, camera, hoveredTile]);
 
   useEffect(() => {
     drawGrid();
   }, [drawGrid]);
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (canvas) {
-      canvas.width = CANVAS_WIDTH;
-      canvas.height = CANVAS_HEIGHT;
-    }
-  }, []);
-
-  useEffect(() => {
-    const newTiles: Tile[] = [];
-    const terrains = ["grass", "dirt", "rocky", "water"];
-    for (let y = 0; y < GRID_SIZE; y++) {
-      for (let x = 0; x < GRID_SIZE; x++) {
-        newTiles.push({
-          x: x,
-          y: y,
-          terrain: terrains[Math.floor(Math.random() * terrains.length)],
-          height: Math.floor(Math.random() * 10),
-        });
-      }
-    }
-    setTiles(newTiles);
-  }, []);
-
-  const handleMouseMove = (e: React.MouseEvent) => {
+  /**
+   * Handles mouse movements
+   * @param {MouseEvent} e
+   * @returns {void}
+   */
+  const handleMouseMove = (e: React.MouseEvent): void => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -121,28 +121,40 @@ const IsometricTerrain: React.FC = () => {
     const mouseY = e.clientY - rect.top;
     setMousePosition({ x: mouseX, y: mouseY });
 
-    // Convert screen coordinates to tile coordinates
-    const tileX = Math.floor(((mouseX - CANVAS_WIDTH / 2) / tileSize + camera.x) / 2 + (mouseY + camera.y * tileSize) / (tileSize / 2));
-    const tileY = Math.floor(((mouseY + CANVAS_HEIGHT / 2 + camera.y * tileSize) / (tileSize / 2) - tileX) / 2 + camera.x);
+    // Short-circuit the function if mouse is NOT over canvas
+    if (mouseX < 0 || mouseX > CANVAS_WIDTH || mouseY < 0 || mouseY > CANVAS_HEIGHT) {
+      setHoveredTile(null);
+      return;
+    }
+
+    const tileSizeHalf = tileSize / 2;
+    const targetMinX = mouseX - tileSize;
+    const targetMaxX = mouseX;
+
+    const targetMinY = mouseY - tileSizeHalf / 2;
+    const targetMaxY = mouseY + tileSize;
 
     // Find the tile under the cursor
-    const tile = tiles.find((t) => t.x === tileX && t.y === tileY);
-    setSelectedTile(tile || null);
+    const tile = tiles.find((t) => {
+      return t.drawX > targetMinX && t.drawX < targetMaxX && t.drawY > targetMinY && t.drawY < targetMaxY;
+    });
+
+    setHoveredTile(tile || null);
   };
 
-  function handleKeyPress(e: React.KeyboardEvent): void {
+  const handleKeyPress = (e: React.KeyboardEvent): void => {
     switch (e.key) {
       case "ArrowUp":
-        setCamera((old: Camera) => ({ ...old, y: old.y - 1 }));
+        setCamera((old) => ({ ...old, y: old.y - 1 }));
         break;
       case "ArrowDown":
-        setCamera((old: Camera) => ({ ...old, y: old.y + 1 }));
+        setCamera((old) => ({ ...old, y: old.y + 1 }));
         break;
       case "ArrowLeft":
-        setCamera((old: Camera) => ({ ...old, x: old.x - 1 }));
+        setCamera((old) => ({ ...old, x: old.x - 1 }));
         break;
       case "ArrowRight":
-        setCamera((old: Camera) => ({ ...old, x: old.x + 1 }));
+        setCamera((old) => ({ ...old, x: old.x + 1 }));
         break;
       case "=":
         handleZoom(1);
@@ -151,11 +163,11 @@ const IsometricTerrain: React.FC = () => {
         handleZoom(-1);
         break;
     }
-  }
+  };
 
-  function handleZoom(inOrOut: number): void {
+  const handleZoom = (inOrOut: number): void => {
     setTileSize((oldSize) => oldSize + inOrOut * 16);
-  }
+  };
 
   return (
     <div tabIndex={0} onKeyDown={handleKeyPress} onMouseMove={handleMouseMove} style={{ outline: "none" }}>
@@ -163,7 +175,7 @@ const IsometricTerrain: React.FC = () => {
 
       <div id="text-container">
         <div className="hover-text">
-          <span>X:</span> {selectedTile ? selectedTile.x : "N/A"}, <span>Y:</span> {selectedTile ? selectedTile.y : "N/A"}
+          <span>X:</span> {hoveredTile ? hoveredTile.x : "N/A"}, <span>Y:</span> {hoveredTile ? hoveredTile.y : "N/A"}
         </div>
         <div className="mouse-text">
           <span>Mouse X:</span> {mousePosition.x}, <span>Y:</span> {mousePosition.y}
