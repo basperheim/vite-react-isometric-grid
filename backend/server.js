@@ -3,10 +3,11 @@ const path = require("path");
 
 const app = express();
 
-app.use(express.static(path.join(__dirname, "build")));
+// Serve static files from the dist directory
+app.use(express.static(path.join(__dirname, "../dist")));
 
 app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "build", "index.html"));
+  res.sendFile(path.join(__dirname, "../dist", "index.html"));
 });
 
 const PORT = process.env.PORT || 5000;
