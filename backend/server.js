@@ -1,7 +1,14 @@
 const express = require("express");
 const path = require("path");
+const bodyParser = require("body-parser");
 
 const app = express();
+
+// Middleware to parse JSON bodies
+app.use(bodyParser.json());
+
+// Middleware to parse URL-encoded bodies
+app.use(bodyParser.urlencoded({ extended: true }));
 
 // Serve static files from the dist directory
 app.use(express.static(path.join(__dirname, "../dist")));
